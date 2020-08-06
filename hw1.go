@@ -4,12 +4,13 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
-var (
-	currentYear = time.Now().Year()
-)
+type selfIntroducer interface {
+	tellName()
+	tellCompanyName()
+	tellPosition()
+}
 
 //Human represents basics human's attributes
 type Human struct {
@@ -28,6 +29,7 @@ type Employee struct {
 	workingHoursPerDay uint
 	isUnique           bool
 	isRemote           bool
+	position           string
 	yearsOfExperience  uint
 	companyName        string
 	human              *Human
@@ -73,15 +75,40 @@ type Teacher struct {
 	employee    *Employee
 }
 
-
-func (h *Human) happyBirthday() {
-	fmt.Printf("\nHappy Birthday to %v %v from %v", h.name, h.secondname, h.location)
+func (e Employee) tellName() {
+	fmt.Printf("\nMy name is %v", e.human.name)
 }
 
-func (h *Human) happyNewYear() {
-	fmt.Printf("\nHappy New %vth Year, %v", currentYear, h.name)
+func (e Employee) tellCompanyName() {
+	fmt.Printf("\nI work in %v company", e.companyName)
 }
 
+func (e Employee) tellPosition() {
+	fmt.Printf("\nI work as a %v", e.position)
+}
+
+func introduce(s selfIntroducer) {
+	fmt.Println("\n")
+	s.tellName()
+	s.tellCompanyName()
+	s.tellPosition()
+}
+
+func fillCache(arr []Employee) map[string]Employee {
+	var m = make(map[string]Employee)
+	for _, value := range arr {
+		m[value.nickname] = value
+	}
+	return m
+}
+
+func getTypes(m map[string]Employee) map[string]string {
+	var types = make(map[string]string)
+	for _, value := range m {
+		types[value.nickname] = fmt.Sprintf("%T", value)
+	}
+	return types
+}
 
 func main() {
 	richard := Driver{
@@ -109,10 +136,11 @@ func main() {
 		Specialization: "FullStack",
 		Rank:           "Middle",
 		employee: &Employee{
+			position:           "Team lead",
 			nickname:           "marker007",
 			salary:             300000,
 			workingHoursPerDay: 8,
-			yearsOfExperience:  3,
+			yearsOfExperience:  12,
 			companyName:        "Twitter",
 			human: &Human{
 				"Mark",
@@ -129,6 +157,8 @@ func main() {
 		Category: "dantist",
 		Hospital: 453,
 		employee: &Employee{
+			nickname:           "an8320",
+			position:           "main doctor",
 			salary:             20.6,
 			workingHoursPerDay: 6,
 			yearsOfExperience:  10,
@@ -149,7 +179,9 @@ func main() {
 		MiddleHairSkillLevel: 4,
 		LongHairSkillLevel:   8,
 		employee: &Employee{
-			salary: 13.,
+			position: "junior barber",
+			nickname: "",
+			salary:   13.,
 			human: &Human{
 				name:        "Mike",
 				citizenship: "Argentina",
@@ -161,6 +193,8 @@ func main() {
 	deborah := Teacher{
 		Subject: "italian language",
 		employee: &Employee{
+			position: "ordinary teacher",
+			nickname: "deb987",
 			human: &Human{
 				"Deborah",
 				"DeLuca",
@@ -172,10 +206,15 @@ func main() {
 		},
 	}
 
+	var employeesArr = []Employee{*richard.employee, *mark.employee, *anastasia.employee, *mike.employee, *deborah.employee}
+	employeesCache := fillCache(employeesArr)
+	employeesTypes := getTypes(employeesCache)
+
 	fmt.Printf("%+v\n\n%+v\n\n%+v\n\n%+v\n\n%+v\n", deborah, mike, anastasia, mark, richard)
-	deborah.employee.human.happyBirthday()
-	anastasia.employee.human.happyBirthday()
-	mike.employee.human.happyBirthday()
-	mike.employee.human.happyNewYear()
+	for _, v := range employeesCache {
+		introduce(v)
+	}
+
+	fmt.Printf("\nTypes: %+v", employeesTypes)
 
 }
