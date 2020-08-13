@@ -4,6 +4,11 @@ package main
 
 import (
 	"fmt"
+	"sync"
+)
+
+var (
+	mutex sync.RWMutex
 )
 
 type selfIntroducer interface {
@@ -32,6 +37,7 @@ type Employee struct {
 	position           string
 	yearsOfExperience  uint
 	companyName        string
+	isChief            bool
 	human              *Human
 }
 
@@ -87,11 +93,14 @@ func (e Employee) tellPosition() {
 	fmt.Printf("\nI work as a %v", e.position)
 }
 
-func introduce(s selfIntroducer) {
+func introduce(s selfIntroducer, wg *sync.WaitGroup) {
+	mutex.Lock()
 	fmt.Println("\n")
 	s.tellName()
 	s.tellCompanyName()
 	s.tellPosition()
+	mutex.Unlock()
+	wg.Done()
 }
 
 func fillCache(arr []Employee) map[string]Employee {
@@ -110,6 +119,20 @@ func getTypes(m map[string]Employee) map[string]string {
 	return types
 }
 
+func employeeToHuman(e Employee) (h Human) {
+	return *e.human
+}
+
+func chiefsCounter(earr []Employee) int {
+	var counter int
+	for _, v := range earr {
+		if v.isChief {
+			counter++
+		}
+	}
+	return counter
+}
+
 func main() {
 	richard := Driver{
 		"D",
@@ -120,6 +143,8 @@ func main() {
 			workingHoursPerDay: 12,
 			yearsOfExperience:  2,
 			companyName:        "DHL",
+			isChief:            true,
+			position:           "deliveryman",
 			human: &Human{
 				"Richard",
 				"Jackson",
@@ -142,6 +167,7 @@ func main() {
 			workingHoursPerDay: 8,
 			yearsOfExperience:  12,
 			companyName:        "Twitter",
+			isChief:            true,
 			human: &Human{
 				"Mark",
 				"Meyer",
@@ -162,6 +188,7 @@ func main() {
 			salary:             20.6,
 			workingHoursPerDay: 6,
 			yearsOfExperience:  10,
+			isChief:            false,
 			companyName:        "Boris",
 			human: &Human{
 				"Anastasia",
@@ -182,6 +209,7 @@ func main() {
 			position: "junior barber",
 			nickname: "",
 			salary:   13.,
+			isChief:  false,
 			human: &Human{
 				name:        "Mike",
 				citizenship: "Argentina",
@@ -195,6 +223,7 @@ func main() {
 		employee: &Employee{
 			position: "ordinary teacher",
 			nickname: "deb987",
+			isChief:  false,
 			human: &Human{
 				"Deborah",
 				"DeLuca",
@@ -206,15 +235,34 @@ func main() {
 		},
 	}
 
-	var employeesArr = []Employee{*richard.employee, *mark.employee, *anastasia.employee, *mike.employee, *deborah.employee}
+	employeesArr := []Employee{*richard.employee, *mark.employee, *anastasia.employee, *mike.employee, *deborah.employee}
 	employeesCache := fillCache(employeesArr)
-	employeesTypes := getTypes(employeesCache)
+	//employeesTypes := getTypes(employeesCache)
 
 	fmt.Printf("%+v\n\n%+v\n\n%+v\n\n%+v\n\n%+v\n", deborah, mike, anastasia, mark, richard)
-	for _, v := range employeesCache {
-		introduce(v)
-	}
 
-	fmt.Printf("\nTypes: %+v", employeesTypes)
+	var wgChiefs sync.WaitGroup
+	var wgNonChiefs sync.WaitGroup
+
+	wgChiefs.Add(chiefsCounter(employeesArr))
+	wgNonChiefs.Add(len(employeesArr) - chiefsCounter(employeesArr))
+
+	for _, v := range employeesCache {
+		if v.isChief {
+			go introduce(v, &wgChiefs)
+		}
+	}
+	wgChiefs.Wait()
+
+	for _, v := range employeesCache {
+		if !v.isChief {
+			go introduce(v, &wgNonChiefs)
+		}
+	}
+	wgNonChiefs.Wait()
+
+	//deborahHuman := employeeToHuman(*deborah.employee)
+
+	//fmt.Printf("\nTypes: %+v", employeesTypes)
 
 }
