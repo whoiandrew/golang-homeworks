@@ -3,12 +3,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
 	"sync"
 )
 
 var (
 	mutex sync.RWMutex
+)
+
+const (
+	MethodGet  = "GET"
+	MethodPost = "POST"
 )
 
 type selfIntroducer interface {
@@ -31,11 +39,11 @@ type Human struct {
 type Employee struct {
 	nickname           string
 	salary             float64
-	workingHoursPerDay uint
+	workingHoursPerDay uint64
 	isUnique           bool
 	isRemote           bool
 	position           string
-	yearsOfExperience  uint
+	yearsOfExperience  uint64
 	companyName        string
 	isChief            bool
 	human              *Human
@@ -133,6 +141,17 @@ func chiefsCounter(earr []Employee) int {
 	return counter
 }
 
+func mapkey(m map[string]int, value int) (key string, ok bool) {
+	for k, v := range m {
+		if v == value {
+			key = k
+			ok = true
+			return
+		}
+	}
+	return
+}
+
 func main() {
 	richard := Driver{
 		"D",
@@ -207,7 +226,7 @@ func main() {
 		LongHairSkillLevel:   8,
 		employee: &Employee{
 			position: "junior barber",
-			nickname: "",
+			nickname: "mikee1",
 			salary:   13.,
 			isChief:  false,
 			human: &Human{
@@ -241,6 +260,9 @@ func main() {
 
 	fmt.Printf("%+v\n\n%+v\n\n%+v\n\n%+v\n\n%+v\n", deborah, mike, anastasia, mark, richard)
 
+	elem, _ := json.Marshal(deborah)
+	fmt.Printf("%v", elem)
+
 	var wgChiefs sync.WaitGroup
 	var wgNonChiefs sync.WaitGroup
 
@@ -261,6 +283,52 @@ func main() {
 	}
 	wgNonChiefs.Wait()
 
+	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		queries := req.URL.Query()
+		if req.Method == MethodGet {
+			fmt.Fprintf(w, req.Method)
+			for k, v := range queries {
+				if k == "nick" {
+					elem, ok := employeesCache[v[0]]
+					if !ok {
+						fmt.Fprintf(w, "\nEmployee %v does not exist", v)
+					} else {
+						fmt.Fprintf(w, "\n%v", elem)
+					}
+				} else {
+					fmt.Fprintf(w, "\nPls, input nick=<nickname>")
+				}
+			}
+		} else if req.Method == MethodPost {
+			fmt.Fprintf(w, req.Method)
+			err := req.ParseForm()
+			if err != nil {
+				panic(err)
+			}
+
+			nickname := req.PostFormValue("nickname")
+			salary, _ := strconv.ParseFloat(req.PostFormValue("salary"), 64)
+			workingHoursPerDay, _ := strconv.ParseUint(req.PostFormValue("workingHoursPerDay"), 10, 64)
+
+			if _, ok := employeesCache[nickname]; ok {
+				fmt.Fprintf(w, "\nUser %v has already created", nickname)
+			} else {
+				employeesCache[nickname] = Employee{
+					nickname:           nickname,
+					salary:             salary,
+					workingHoursPerDay: workingHoursPerDay,
+				}
+			}
+
+			fmt.Fprintf(w, "\n%+v", employeesCache[nickname])
+
+		}
+
+	})
+
+	port := ":8082"
+
+	http.ListenAndServe(port, nil)
 	//deborahHuman := employeeToHuman(*deborah.employee)
 
 	//fmt.Printf("\nTypes: %+v", employeesTypes)
